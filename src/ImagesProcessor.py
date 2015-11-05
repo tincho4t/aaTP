@@ -14,17 +14,18 @@ class ImagesProcessor:
         self.training = training
         self.path = path
         self.images = []
+        self.imagesClass = []
         for filename in os.listdir(path):
             pathFileName = path+filename
-            animalClass = self.getAnimalClass(filename)
-            self.images.append([cv2.imread(pathFileName), animalClass])
+            self.images.append(cv2.imread(pathFileName))
+            if(self.training):
+                animalClass = self.getAnimalClass(filename)
+                self.imagesClass.append(animalClass) # Al agregar la imagen y su clase en el mismo orden no pierdo la relacion
         self.grayImages = None
 
 
     def getAnimalClass(self, filename):
-        if(not self.training):
-            return -1 # Devuelvo "Fruta" para mantener la estructura de de datos de images
-        elif(filename.find('cat') >= 0):
+        if(filename.find('cat') >= 0):
             return 1
         elif(filename.find('dog') >= 0):
             return 0
@@ -36,6 +37,10 @@ class ImagesProcessor:
         return self.images
 
 
+    def getImagesClass(self):
+        return self.imagesClass
+
+
     # Retorna el conjunto de las images con el
     # histograma normalizado de imagenes en escala de grises
     def getImagesWithGrayHistogramEqualized(self):
@@ -44,9 +49,9 @@ class ImagesProcessor:
             print "Calculando el Histograma Normalizado en Grises"
             self.grayImages = []
             for image in self.images:
-                grayImage = cv2.cvtColor(image[0], cv2.COLOR_BGR2GRAY)
+                grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
                 grayImage = cv2.equalizeHist(grayImage)
-                self.grayImages.append([grayImage, image[1]]) # Imagen y su clasificacion
+                self.grayImages.append(grayImage)
         return self.grayImages
 
 
@@ -61,8 +66,6 @@ class ImagesProcessor:
         gimages = self.getImagesWithGrayHistogramEqualized()
         features = []
         for image in gimages:
-            print "Tipo de imagen: ", type(image)
-            cv2.waitKey(0)
             features.append(self.getDarkPattern(image))
         return features
 
@@ -82,9 +85,4 @@ class ImagesProcessor:
             hits = 0 if hits is None else hits
             pixelCombination.append(hits) # Al agreguar los elementos en el orden de PIXEL_COMBINATION me quedan siempre en orden
         return pixelCombination
-
-"""
-    Hay que fixear la funcion. a getDarkPattern le esta llegando
-    como imagen una lista en lugar de un ndarray. Algo estoy haciendo
-"""
 

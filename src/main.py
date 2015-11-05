@@ -10,7 +10,8 @@ ip = ImagesProcessor('../imgs/test/', training=True)
 
 images = ip.getImages()
 gimages = ip.getImagesWithGrayHistogramEqualized()
-getDarkPatternFeature = ip.getDarkPatternFeature()
+#getDarkPatternFeature = ip.getDarkPatternFeature() # Tarda!!!!
+
 ## Como mostrar una foto
 #image = cv2.imread('../imgs/test/cat.0.jpg')
 #cv2.imshow('color_image',image)
