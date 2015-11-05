@@ -21,24 +21,9 @@ gimages = ip.getImagesWithGrayHistogramEqualized()
 image = cv2.imread('../imgs/test/cat.0.jpg', 0)
 ip.getDarkPattern(image)
 
-def oscuro(color):
-    return 1 if (color <= 127) else 0
 
-
-FOUR_PIXEL_COMBINATION = [(0, 0, 0, 0),(0, 0, 0, 1),(0, 0, 1, 0),(0, 0, 1, 1),(0, 1, 0, 0),(0, 1, 0, 1),(0, 1, 1, 0),(0, 1, 1, 1),(1, 0, 0, 0),(1, 0, 0, 1),(1, 0, 1, 0),(1, 0, 1, 1),(1, 1, 0, 0),(1, 1, 0, 1),(1, 1, 1, 0),(1, 1, 1, 1)]
-
-patternHits = {}
-for i in range(image.shape[0]-1):
-    for j in range(image.shape[1]-1):
-            p = (oscuro(image[i,j]), oscuro(image[i+1,j]), oscuro(image[i+1,j]), oscuro(image[i+1,j+1]))
-            if p in patternHits.keys():
-                patternHits[p] = patternHits[p] + 1
-            else:
-                patternHits[p] = 1
-
-pixelCombination = []
-
-for combination in FOUR_PIXEL_COMBINATION:
-    hits = patternHits.get(combination)
-    hits = 0 if hits is None else hits
-    pixelCombination.append(hits) # Al agreguar los elementos en el orden de PIXEL_COMBINATION me quedan siempre en orden
+import mahotas
+radius = 5
+points = 12
+img = mahotas.imread("../imgs/test/cat.0.jpg", as_grey=True)
+mahotas.features.lbp(img, radius, points, ignore_zeros=False)

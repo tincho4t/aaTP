@@ -4,6 +4,7 @@
 # Function get_features_n(imagenes) - retrona dataset de attributes + columna label
 import numpy as np
 import cv2
+import mahotas
 import os
 
 class ImagesProcessor:
@@ -14,14 +15,18 @@ class ImagesProcessor:
         self.training = training
         self.path = path
         self.images = []
+        self.imagesMahotas = []
         self.imagesClass = []
         for filename in os.listdir(path):
             pathFileName = path+filename
-            self.images.append(cv2.imread(pathFileName))
+            self.images.append(cv2.imread(pathFileName)) # Cargo las imagenes en formato cv2
+            self.imagesMahotas.append(mahotas.imread(pathFileName, as_grey=True)) # cargo las imagenes en formato mahotas
             if(self.training):
                 animalClass = self.getAnimalClass(filename)
                 self.imagesClass.append(animalClass) # Al agregar la imagen y su clase en el mismo orden no pierdo la relacion
         self.grayImages = None
+        self.darkPatternFeature = None
+        self.textureFeatures = {} # Contiene todas las texturas calculadas para los distintos valores de radio y puntos
 
 
     def getAnimalClass(self, filename):
@@ -63,11 +68,12 @@ class ImagesProcessor:
     # Cuanta la cantidad de patrones que hay en la imagen
     # tomando cuadrados de 2x2
     def getDarkPatternFeature(self):
-        gimages = self.getImagesWithGrayHistogramEqualized()
-        features = []
-        for image in gimages:
-            features.append(self.getDarkPattern(image))
-        return features
+        if(self.darkPatternFeature is None):
+            gimages = self.getImagesWithGrayHistogramEqualized()
+            self.darkPatternFeature = []
+            for image in gimages:
+                self.darkPatternFeature.append(self.getDarkPattern(image))
+        return self.darkPatternFeature
 
 
     def getDarkPattern(self, image):
@@ -86,3 +92,12 @@ class ImagesProcessor:
             pixelCombination.append(hits) # Al agreguar los elementos en el orden de PIXEL_COMBINATION me quedan siempre en orden
         return pixelCombination
 
+    def getTextureFeature(self, radius, points):
+        key = (radius, points)
+        if(self.textureFeatures.get(key) is None):
+            print "Calculando texturas para radio %d con %d puntos" % (radius, points)
+            textures = []
+            for image in self.imagesMahotas:
+                textures.append(mahotas.features.lbp(image, radius, points, ignore_zeros=False))
+            self.textureFeatures[key] = textures
+        return self.textureFeatures[key]
