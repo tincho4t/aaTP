@@ -7,6 +7,9 @@ import cv2
 import os
 
 class ImagesProcessor:
+    FOUR_PIXEL_COMBINATION = [(0, 0, 0, 0),(0, 0, 0, 1),(0, 0, 1, 0),(0, 0, 1, 1),(0, 1, 0, 0),(0, 1, 0, 1),(0, 1, 1, 0),(0, 1, 1, 1),(1, 0, 0, 0),(1, 0, 0, 1),(1, 0, 1, 0),(1, 0, 1, 1),(1, 1, 0, 0),(1, 1, 0, 1),(1, 1, 1, 0),(1, 1, 1, 1)]
+
+
     def __init__(self, path, training = False):
         self.training = training
         self.path = path
@@ -47,22 +50,41 @@ class ImagesProcessor:
         return self.grayImages
 
 
-    def oscuro(color):
-        return (color <= 127)? 1 : 0
+    def oscuro(self, color):
+        return 1 if (color <= 127) else 0
 
-"""
+
     # Alto nombre que le puse ;)
     # Cuanta la cantidad de patrones que hay en la imagen
     # tomando cuadrados de 2x2
-    def getDarkPatterns(self, image):
-        pattern_dict = {}
+    def getDarkPatternFeature(self):
+        gimages = self.getImagesWithGrayHistogramEqualized()
+        features = []
+        for image in gimages:
+            print "Tipo de imagen: ", type(image)
+            cv2.waitKey(0)
+            features.append(self.getDarkPattern(image))
+        return features
+
+
+    def getDarkPattern(self, image):
+        patternHits = {}
         for i in range(image.shape[0]-1):
             for j in range(image.shape[1]-1):
                     p = (self.oscuro(image[i,j]), self.oscuro(image[i+1,j]), self.oscuro(image[i+1,j]), self.oscuro(image[i+1,j+1]))
-                    if p in pattern_dict.keys():
-                        pattern_dict[p] = pattern_dict[p] + 1
+                    if p in patternHits.keys():
+                        patternHits[p] = patternHits[p] + 1
                     else:
-                        pattern_dict[p] = 1
-        return pattern_dict
+                        patternHits[p] = 1
+        pixelCombination = []
+        for combination in self.FOUR_PIXEL_COMBINATION:
+            hits = patternHits.get(combination)
+            hits = 0 if hits is None else hits
+            pixelCombination.append(hits) # Al agreguar los elementos en el orden de PIXEL_COMBINATION me quedan siempre en orden
+        return pixelCombination
+
+"""
+    Hay que fixear la funcion. a getDarkPattern le esta llegando
+    como imagen una lista en lugar de un ndarray. Algo estoy haciendo
 """
 
