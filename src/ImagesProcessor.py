@@ -6,6 +6,7 @@ import numpy as np
 import cv2
 import mahotas
 import os
+from sklearn.decomposition import PCA
 
 class ImagesProcessor:
     FOUR_PIXEL_COMBINATION = [(0, 0, 0, 0),(0, 0, 0, 1),(0, 0, 1, 0),(0, 0, 1, 1),(0, 1, 0, 0),(0, 1, 0, 1),(0, 1, 1, 0),(0, 1, 1, 1),(1, 0, 0, 0),(1, 0, 0, 1),(1, 0, 1, 0),(1, 0, 1, 1),(1, 1, 0, 0),(1, 1, 0, 1),(1, 1, 1, 0),(1, 1, 1, 1)]
@@ -101,3 +102,9 @@ class ImagesProcessor:
                 textures.append(mahotas.features.lbp(image, radius, points, ignore_zeros=False))
             self.textureFeatures[key] = textures
         return self.textureFeatures[key]
+
+    def getPcaFeatures(self, components):
+        """ Esta no funciona todavia """
+        pca = PCA(n_components=components)
+        return pca.fit_transform(self.images)
+

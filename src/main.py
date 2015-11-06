@@ -7,7 +7,8 @@ import os
 from ImagesProcessor import ImagesProcessor
 from RandomForest import RandomForest
 
-ip = ImagesProcessor('../imgs/test/', training=True)
+ip = ImagesProcessor('../imgs/test/medium/', training=True)
+#ip = ImagesProcessor('../imgs/test/small/', training=True)
 
 textures = ip.getTextureFeature(5,12)
 y = ip.getImagesClass()
@@ -42,4 +43,17 @@ r.score()
         pip install mahotas
         sudo pip install imread
 """
+"""
+    Resultados: con RandomForest
+        textures = ip.getTextureFeature(5,12)
+        0.65336658354114718
 
+        textures = ip.getTextureFeature(10,12)
+        0.66583541147132175
+
+        textures = ip.getTextureFeature(15,20)
+        0.57356608478802995
+
+        textures = ip.getTextureFeature(15,12)
+        0.62094763092269323
+"""
