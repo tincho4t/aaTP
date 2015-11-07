@@ -7,15 +7,30 @@ import os
 from ImagesProcessor import ImagesProcessor
 from RandomForest import RandomForest
 
+import rlcompleter, readline
+readline.parse_and_bind('tab:complete')
+
 ip = ImagesProcessor('../imgs/test/medium/', training=True)
 #ip = ImagesProcessor('../imgs/test/small/', training=True)
 
-textures = ip.getTextureFeature(5,12)
+textures = ip.getTextureFeature(5, 12)
 y = ip.getImagesClass()
 
 r = RandomForest(textures, y)
 r.fit()
 r.score()
+
+pca, norm, ds = ip.getPcaFeatures(10, (100, 100))
+y = ip.getImagesClass()
+pr = RandomForest(ds, y)
+pr.fit()
+pr.score()
+
+rbm, ds = ip.getBernulliRBM(20, (256, 256), n_iter=20, learning_rate=0.005)
+y = ip.getImagesClass()
+pr = RandomForest(ds, y)
+pr.fit()
+pr.score()
 
 #images = ip.getImages()
 #gimages = ip.getImagesWithGrayHistogramEqualized()

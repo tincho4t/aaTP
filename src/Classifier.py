@@ -15,7 +15,7 @@ import numpy as np
 from sklearn.cross_validation import train_test_split
 
 class Classifier(object):
-    N_ESTIMATORS = 100
+    N_ESTIMATORS = 300
     RANDOM_STATE = 42
 
     def __init__(self, X, Y):

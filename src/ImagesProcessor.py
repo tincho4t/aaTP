@@ -6,13 +6,15 @@ import numpy as np
 import cv2
 import mahotas
 import os
+from sklearn.preprocessing import Normalizer
 from sklearn.decomposition import PCA
+from sklearn.neural_network import BernoulliRBM
+
 
 class ImagesProcessor:
     FOUR_PIXEL_COMBINATION = [(0, 0, 0, 0),(0, 0, 0, 1),(0, 0, 1, 0),(0, 0, 1, 1),(0, 1, 0, 0),(0, 1, 0, 1),(0, 1, 1, 0),(0, 1, 1, 1),(1, 0, 0, 0),(1, 0, 0, 1),(1, 0, 1, 0),(1, 0, 1, 1),(1, 1, 0, 0),(1, 1, 0, 1),(1, 1, 1, 0),(1, 1, 1, 1)]
 
-
-    def __init__(self, path, training = False):
+    def __init__(self, path, training=False):
         self.training = training
         self.path = path
         self.images = []
@@ -29,7 +31,6 @@ class ImagesProcessor:
         self.darkPatternFeature = None
         self.textureFeatures = {} # Contiene todas las texturas calculadas para los distintos valores de radio y puntos
 
-
     def getAnimalClass(self, filename):
         if(filename.find('cat') >= 0):
             return 1
@@ -38,14 +39,17 @@ class ImagesProcessor:
         else:
             raise ValueError("El nombre del filename no contiene informacion: %s." % filename)
 
-
     def getImages(self):
         return self.images
 
+    def getImagesWithSize(self, size):
+        images = []
+        for img in self.images:
+            images += [cv2.resize(img, size)]
+        return(images)
 
     def getImagesClass(self):
         return self.imagesClass
-
 
     # Retorna el conjunto de las images con el
     # histograma normalizado de imagenes en escala de grises
@@ -60,10 +64,8 @@ class ImagesProcessor:
                 self.grayImages.append(grayImage)
         return self.grayImages
 
-
     def oscuro(self, color):
         return 1 if (color <= 127) else 0
-
 
     # Alto nombre que le puse ;)
     # Cuanta la cantidad de patrones que hay en la imagen
@@ -76,12 +78,11 @@ class ImagesProcessor:
                 self.darkPatternFeature.append(self.getDarkPattern(image))
         return self.darkPatternFeature
 
-
     def getDarkPattern(self, image):
         patternHits = {}
         for i in range(image.shape[0]-1):
             for j in range(image.shape[1]-1):
-                    p = (self.oscuro(image[i,j]), self.oscuro(image[i+1,j]), self.oscuro(image[i+1,j]), self.oscuro(image[i+1,j+1]))
+                    p = (self.oscuro(image[i, j]), self.oscuro(image[i+1, j]), self.oscuro(image[i+1, j]), self.oscuro(image[i+1, j+1]))
                     if p in patternHits.keys():
                         patternHits[p] = patternHits[p] + 1
                     else:
@@ -90,7 +91,7 @@ class ImagesProcessor:
         for combination in self.FOUR_PIXEL_COMBINATION:
             hits = patternHits.get(combination)
             hits = 0 if hits is None else hits
-            pixelCombination.append(hits) # Al agreguar los elementos en el orden de PIXEL_COMBINATION me quedan siempre en orden
+            pixelCombination.append(hits)  # Al agreguar los elementos en el orden de PIXEL_COMBINATION me quedan siempre en orden
         return pixelCombination
 
     def getTextureFeature(self, radius, points):
@@ -103,8 +104,23 @@ class ImagesProcessor:
             self.textureFeatures[key] = textures
         return self.textureFeatures[key]
 
-    def getPcaFeatures(self, components):
-        """ Esta no funciona todavia """
+    def getPcaFeatures(self, components, image_size):
+        imageDataset = self.getImagesAsDataset(image_size)
+        norm = Normalizer()
+        imageDataset = norm.fit_transform(imageDataset)
         pca = PCA(n_components=components)
-        return pca.fit_transform(self.images)
+        imageDataset = pca.fit_transform(imageDataset)
+        return pca, norm, imageDataset
 
+    def getImagesAsDataset(self, size):
+        n = len(self.images)
+        images = np.array(self.getImagesWithSize(size))
+        images = np.array(images).reshape((n, -1, 3)).reshape((n, -1))  # Magia de reshape para obtener n filas con los pixeles de las imagenes aplanados en 1-D
+        return(images)
+
+    def getBernulliRBM(self, components, image_size, learning_rate=0.1, n_iter=10):
+        imageDataset = self.getImagesAsDataset(image_size)
+        imageDataset = (imageDataset - np.min(imageDataset, 0)) / (np.max(imageDataset, 0) + 0.0001)
+        rbm = BernoulliRBM(n_components=components, learning_rate=learning_rate, n_iter=n_iter, verbose=True)
+        imageDataset = rbm.fit_transform(imageDataset)
+        return rbm, imageDataset
