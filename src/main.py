@@ -4,33 +4,50 @@
 import numpy as np
 import cv2
 import os
+from Constants import Constants
 from ImagesProcessor import ImagesProcessor
 from RandomForest import RandomForest
+from sklearn.cross_validation import KFold
+from sklearn.cross_validation import train_test_split
+from sklearn.grid_search import GridSearchCV
+from sklearn.metrics import classification_report
 
 import rlcompleter, readline
 readline.parse_and_bind('tab:complete')
 
 ip = ImagesProcessor('../imgs/test/medium/', training=True)
+
+images = ip.getImages()
+
+
+# def crossValidation(X, Y):
+#     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=Constants.TEST_SIZE, random_state=Constants.RANDOM_STATE)
+#     kf = kf = KFold(len(X_train), n_folds=30, shuffle=False, random_state=Constants.RANDOM_STATE)
+#     for train_index, test_index in kf:
+#         print("TRAIN:", train_index, "TEST:", test_index)
+
+
 #ip = ImagesProcessor('../imgs/test/small/', training=True)
 
-textures = ip.getTextureFeature(5, 12)
-y = ip.getImagesClass()
+# textures = ip.getTextureFeature(5, 12)
+# y = ip.getImagesClass()
 
-r = RandomForest(textures, y)
-r.fit()
-r.score()
+# r = RandomForest(textures, y)
+# r.fit()
+# r.score()
 
-pca, norm, ds = ip.getPcaFeatures(10, (100, 100))
-y = ip.getImagesClass()
-pr = RandomForest(ds, y)
-pr.fit()
-pr.score()
+# pca, norm, ds = ip.getPcaFeatures(10, (100, 100))
+# y = ip.getImagesClass()
+# pr = RandomForest(ds, y)
+# pr.fit()
+# pr.score()
 
-rbm, ds = ip.getBernulliRBM(20, (256, 256), n_iter=20, learning_rate=0.005)
-y = ip.getImagesClass()
-pr = RandomForest(ds, y)
-pr.fit()
-pr.score()
+# rbm, ds = ip.getBernulliRBM(20, (256, 256), n_iter=20, learning_rate=0.005)
+# y = ip.getImagesClass()
+# pr = RandomForest(ds, y)
+# pr.fit()
+# pr.score()
+
 
 #images = ip.getImages()
 #gimages = ip.getImagesWithGrayHistogramEqualized()

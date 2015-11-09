@@ -13,13 +13,12 @@
 # function load -> Load all sub models + model ensamble
 import numpy as np
 from sklearn.cross_validation import train_test_split
+from Constants import Constants
 
 class Classifier(object):
-    N_ESTIMATORS = 300
-    RANDOM_STATE = 42
 
     def __init__(self, X, Y):
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, Y, test_size=0.20, random_state=self.RANDOM_STATE)
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, Y, test_size=Constants.TEST_SIZE, random_state=Constants.RANDOM_STATE)
         self.classifier = None
         self.prediction = None
         self.accuracy = None
