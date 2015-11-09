@@ -14,10 +14,10 @@ from sklearn.ensemble import RandomForestClassifier
 ip = ImagesProcessor('../imgs/test/medium/', training=True)
 
 # Setear Features
-X = ip.getTextureFeature(5, 12)
+X = ip.getTextureFeature(15, 15)
 
 # Setear Parametros para tunear
-tuned_parameters = [{'n_estimators': [500, 850, 1000, 1500, 2000, 5000]}]
+tuned_parameters = [{'n_estimators': [300, 500, 850, 1000, 1500, 2000, 5000]}]
 
 # Setear Clasificador para tuner
 classifier = RandomForestClassifier()
@@ -26,7 +26,8 @@ classifier = RandomForestClassifier()
 ######## DE ACA PARA ABAJO NO HACE FALTA TOCAR NADA #########
 #############################################################
 
-scores = ['precision', 'recall']
+#scores = ['precision', 'recall']
+scores = ['precision']
 Y = ip.getImagesClass()
 X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=Constants.TEST_SIZE, random_state=Constants.RANDOM_STATE)
 for score in scores:
@@ -52,3 +53,4 @@ for score in scores:
     y_true, y_pred = y_test, clf.predict(X_test)
     print(classification_report(y_true, y_pred))
     print()
+
