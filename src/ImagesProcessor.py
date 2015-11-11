@@ -14,22 +14,31 @@ from sklearn.neural_network import BernoulliRBM
 class ImagesProcessor:
     FOUR_PIXEL_COMBINATION = [(0, 0, 0, 0),(0, 0, 0, 1),(0, 0, 1, 0),(0, 0, 1, 1),(0, 1, 0, 0),(0, 1, 0, 1),(0, 1, 1, 0),(0, 1, 1, 1),(1, 0, 0, 0),(1, 0, 0, 1),(1, 0, 1, 0),(1, 0, 1, 1),(1, 1, 0, 0),(1, 1, 0, 1),(1, 1, 1, 0),(1, 1, 1, 1)]
 
-    def __init__(self, path, training=False):
+    def __init__(self, path, training=False, size=None):
         self.training = training
         self.path = path
         self.images = []
-        self.imagesMahotas = []
         self.imagesClass = []
         for filename in os.listdir(path):
             pathFileName = path+filename
-            self.images.append(cv2.imread(pathFileName)) # Cargo las imagenes en formato cv2
-            self.imagesMahotas.append(mahotas.imread(pathFileName, as_grey=True)) # cargo las imagenes en formato mahotas
+            image = cv2.imread(pathFileName)
+            if size is not None:
+                image = cv2.resize(image, size)
+            self.images.append(image) # Cargo las imagenes en formato cv2
             if(self.training):
                 animalClass = self.getAnimalClass(filename)
                 self.imagesClass.append(animalClass) # Al agregar la imagen y su clase en el mismo orden no pierdo la relacion
+        self.imagesMahotas = None
         self.grayImages = None
         self.darkPatternFeature = None
+        self.flatImages = None
         self.textureFeatures = {} # Contiene todas las texturas calculadas para los distintos valores de radio y puntos
+
+    def loadMahotas(self):
+        self.mahotas = []
+        for filename in os.listdir(self.path):
+            pathFileName = self.path+filename
+            self.imagesMahotas.append(mahotas.imread(pathFileName, as_grey=True)) # cargo las imagenes en formato mahotas
 
     def getAnimalClass(self, filename):
         if(filename.find('cat') >= 0):
@@ -42,11 +51,13 @@ class ImagesProcessor:
     def getImages(self):
         return self.images
 
-    def getImagesWithSize(self, size):
-        images = []
-        for img in self.images:
-            images += [cv2.resize(img, size)]
-        return(images)
+    def getImagesWithSize(self, size, images=None):
+        if images is None:
+            images = self.images
+        image_array = []
+        for img in images:
+            image_array += [cv2.resize(img, size)]
+        return(image_array)
 
     def getImagesClass(self):
         return self.imagesClass
@@ -99,24 +110,37 @@ class ImagesProcessor:
         if(self.textureFeatures.get(key) is None):
             print "Calculando texturas para radio %d con %d puntos" % (radius, points)
             textures = []
+            if self.imagesMahotas is None:
+                self.loadMahotas()
             for image in self.imagesMahotas:
                 textures.append(mahotas.features.lbp(image, radius, points, ignore_zeros=False))
             self.textureFeatures[key] = textures
         return self.textureFeatures[key]
 
-    def getPcaFeatures(self, components, image_size):
-        imageDataset = self.getImagesAsDataset(image_size)
+    def getPcaFeatures(self, components, image_size, imageDataset=None):
+        if imageDataset is None:
+            imageDataset = self.getImagesAsDataset(image_size)
         norm = Normalizer()
         imageDataset = norm.fit_transform(imageDataset)
         pca = PCA(n_components=components)
         imageDataset = pca.fit_transform(imageDataset)
         return pca, norm, imageDataset
 
-    def getImagesAsDataset(self, size):
-        n = len(self.images)
-        images = np.array(self.getImagesWithSize(size))
-        images = np.array(images).reshape((n, -1, 3)).reshape((n, -1))  # Magia de reshape para obtener n filas con los pixeles de las imagenes aplanados en 1-D
-        return(images)
+    def getImagesAsDataset(self, size, images=None):
+        if self.flatImages is None:
+            if images is None:
+                images = np.array(self.getImagesWithSize(size))
+            else:
+                images = np.array(self.getImagesWithSize(size, images))
+            n = len(images)
+            if len(images[0].shape) == 3:
+                images = np.array(images).reshape((n, -1, 3)).reshape((n, -1))  # Magia de reshape para obtener n filas con los pixeles de las imagenes aplanados en 1-D
+            else:
+                images = np.array(images).reshape((n, -1))
+            self.flatImages = images
+            return(images)
+        else:
+            return(self.flatImages)
 
     def getBernulliRBM(self, components, image_size, learning_rate=0.1, n_iter=10):
         imageDataset = self.getImagesAsDataset(image_size)
