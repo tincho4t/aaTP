@@ -20,22 +20,38 @@ class ImagesProcessor:
         self.images = []
         self.imagesClass = []
         for filename in os.listdir(path):
+            if(filename.find('.DS_Store') >= 0): # Filtro los archivos temporales q mete mac en las carpetas
+                continue
             pathFileName = path+filename
             image = cv2.imread(pathFileName)
             if size is not None:
                 image = cv2.resize(image, size)
-            self.images.append(image) # Cargo las imagenes en formato cv2
-            if(self.training):
-                animalClass = self.getAnimalClass(filename)
-                self.imagesClass.append(animalClass) # Al agregar la imagen y su clase en el mismo orden no pierdo la relacion
+            self.loadImage(image, filename)
         self.imagesMahotas = None
         self.grayImages = None
         self.darkPatternFeature = None
         self.flatImages = None
         self.textureFeatures = {} # Contiene todas las texturas calculadas para los distintos valores de radio y puntos
+        self.sizes = None
+        self.imagesEdges = None
 
+    # Metodo encargado de almacenar la imagen con sus distintas variantes
+    def loadImage(self, image, filename):
+        self.images.append(image) # Cargo las imagenes en formato cv2
+        self.images.append(cv2.flip(image,1)) # Cargo el mirror horizontal
+        self.images.append(cv2.flip(image,0)) # Cargo el mirror vertical
+        # TODO: Agregar esta transformacion: http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_imgproc/py_geometric_transformations/py_geometric_transformations.html#affine-transformation
+        if(self.training):
+            animalClass = self.getAnimalClass(filename)
+            self.imagesClass.append(animalClass) # Al agregar la imagen y su clase en el mismo orden no pierdo la relacion
+            self.imagesClass.append(animalClass) # Agrego la clase del mirror Horizontal
+            self.imagesClass.append(animalClass) # Agrego la clase del mirror vertical
+
+    # Por ahora no la usamos mas.
+    # Carga la imagen en grises con mejor definicion que opencv
+    # pero como despues la normalizamos no nos cambia tanto.
     def loadMahotas(self):
-        self.mahotas = []
+        self.imagesMahotas = []
         for filename in os.listdir(self.path):
             pathFileName = self.path+filename
             self.imagesMahotas.append(mahotas.imread(pathFileName, as_grey=True)) # cargo las imagenes en formato mahotas
@@ -61,6 +77,13 @@ class ImagesProcessor:
 
     def getImagesClass(self):
         return self.imagesClass
+
+    def getImagesSize(self):
+        if(self.sizes is None):
+            self.sizes = []
+            for image in self.images:
+                self.sizes.append([len(image[0]), len(image)])
+        return self.sizes
 
     # Retorna el conjunto de las images con el
     # histograma normalizado de imagenes en escala de grises
@@ -110,9 +133,8 @@ class ImagesProcessor:
         if(self.textureFeatures.get(key) is None):
             print "Calculando texturas para radio %d con %d puntos" % (radius, points)
             textures = []
-            if self.imagesMahotas is None:
-                self.loadMahotas()
-            for image in self.imagesMahotas:
+            gimages = self.getImagesWithGrayHistogramEqualized()
+            for image in gimages:
                 textures.append(mahotas.features.lbp(image, radius, points, ignore_zeros=False))
             self.textureFeatures[key] = textures
         return self.textureFeatures[key]
@@ -148,3 +170,10 @@ class ImagesProcessor:
         rbm = BernoulliRBM(n_components=components, learning_rate=learning_rate, n_iter=n_iter, verbose=True)
         imageDataset = rbm.fit_transform(imageDataset)
         return rbm, imageDataset
+
+    def getImageEdges(self):
+        if(self.imagesEdges is None):
+            self.imagesEdges = []
+            for image in self.images:
+                self.imagesEdges.append(cv2.Canny(image,100,200))
+        return self.imagesEdges
