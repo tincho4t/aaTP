@@ -9,15 +9,18 @@ import os
 from sklearn.preprocessing import Normalizer
 from sklearn.decomposition import PCA
 from sklearn.neural_network import BernoulliRBM
+import random
 
 
 class ImagesProcessor:
     FOUR_PIXEL_COMBINATION = [(0, 0, 0, 0),(0, 0, 0, 1),(0, 0, 1, 0),(0, 0, 1, 1),(0, 1, 0, 0),(0, 1, 0, 1),(0, 1, 1, 0),(0, 1, 1, 1),(1, 0, 0, 0),(1, 0, 0, 1),(1, 0, 1, 0),(1, 0, 1, 1),(1, 1, 0, 0),(1, 1, 0, 1),(1, 1, 1, 0),(1, 1, 1, 1)]
 
-    def __init__(self, path, training=False, size=None):
+    def __init__(self, path, training=False, size=None, test_size=0.2):
         self.training = training
         self.path = path
         self.images = []
+        self.testImages = []
+        self.testClass = []
         self.imagesClass = []
         for filename in os.listdir(path):
             if(filename.find('.DS_Store') >= 0): # Filtro los archivos temporales q mete mac en las carpetas
@@ -26,7 +29,11 @@ class ImagesProcessor:
             image = cv2.imread(pathFileName)
             if size is not None:
                 image = cv2.resize(image, size)
-            self.loadImage(image, filename)
+            if random.uniform(0, 1) > test_size:
+                self.loadImage(image, filename)
+            else:
+                self.testImages.append(image)
+                self.testClass.append(self.getAnimalClass(filename))
         self.imagesMahotas = None
         self.grayImages = None
         self.darkPatternFeature = None
@@ -35,17 +42,33 @@ class ImagesProcessor:
         self.sizes = None
         self.imagesEdges = None
 
+    def rotateImage(self, image, angle):
+        image_center = tuple(np.array(image.shape)/2)
+        rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+        result = cv2.warpAffine(image, rot_mat, image.shape, flags=cv2.INTER_LINEAR)
+        return result
+
     # Metodo encargado de almacenar la imagen con sus distintas variantes
-    def loadImage(self, image, filename):
+    def loadImage(self, image, filename, rotate=False):
         self.images.append(image) # Cargo las imagenes en formato cv2
-        self.images.append(cv2.flip(image,1)) # Cargo el mirror horizontal
-        self.images.append(cv2.flip(image,0)) # Cargo el mirror vertical
+        self.images.append(cv2.flip(image, 1)) # Cargo el mirror horizontal
+        self.images.append(cv2.flip(image, 0)) # Cargo el mirror vertical
+        if rotate:
+            self.images.append(self.rotateImage(image, 20))
+            self.images.append(self.rotateImage(image, -20))
+            self.images.append(self.rotateImage(image, 50))
+            self.images.append(self.rotateImage(image, -50))
         # TODO: Agregar esta transformacion: http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_imgproc/py_geometric_transformations/py_geometric_transformations.html#affine-transformation
         if(self.training):
             animalClass = self.getAnimalClass(filename)
             self.imagesClass.append(animalClass) # Al agregar la imagen y su clase en el mismo orden no pierdo la relacion
             self.imagesClass.append(animalClass) # Agrego la clase del mirror Horizontal
             self.imagesClass.append(animalClass) # Agrego la clase del mirror vertical
+            if rotate:
+                self.imagesClass.append(animalClass)
+                self.imagesClass.append(animalClass)
+                self.imagesClass.append(animalClass)
+                self.imagesClass.append(animalClass)
 
     # Por ahora no la usamos mas.
     # Carga la imagen en grises con mejor definicion que opencv
@@ -75,8 +98,11 @@ class ImagesProcessor:
             image_array += [cv2.resize(img, size)]
         return(image_array)
 
-    def getImagesClass(self):
-        return self.imagesClass
+    def getImagesClass(self, train=True):
+        if train:
+            return self.imagesClass
+        else:
+            return self.testClass
 
     def getImagesSize(self):
         if(self.sizes is None):
@@ -87,16 +113,25 @@ class ImagesProcessor:
 
     # Retorna el conjunto de las images con el
     # histograma normalizado de imagenes en escala de grises
-    def getImagesWithGrayHistogramEqualized(self):
+    def getImagesWithGrayHistogramEqualized(self, train=True):
         # De esta forma calculo 1 sola vez el histograma
-        if(self.grayImages is None):
+        if(self.grayImages is None and train):
             print "Calculando el Histograma Normalizado en Grises"
             self.grayImages = []
             for image in self.images:
                 grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
                 grayImage = cv2.equalizeHist(grayImage)
                 self.grayImages.append(grayImage)
-        return self.grayImages
+            return self.grayImages
+        elif not train:
+            testImages = []
+            for image in self.testImages:
+                grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                grayImage = cv2.equalizeHist(grayImage)
+                self.testImages.append(grayImage)
+            return testImages
+        else:
+            return self.grayImages
 
     def oscuro(self, color):
         return 1 if (color <= 127) else 0
