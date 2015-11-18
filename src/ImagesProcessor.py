@@ -39,14 +39,15 @@ class ImagesProcessor:
             raise ValueError("El nombre del filename no contiene informacion: %s." % filename)
 
     def _rotateImage(self, image, angle):
-        image_center = tuple(np.array(image.shape)/2)
-        rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-        result = cv2.warpAffine(image, rot_mat, image.shape, flags=cv2.INTER_LINEAR)
-        return result
+        (h, w) = image.shape[:2]
+        center = (w / 2, h / 2)
+        M = cv2.getRotationMatrix2D(center, angle, 1.0)
+        rotated = cv2.warpAffine(image, M, (w, h))
+        return(rotated)
 
     # Le entregas las imagenes y sus clases y te devuelve
     # una tupla con (images originales mas las transformadas, sus respectivas clases)
-    def transformImages(self, images, classes=None, rotate=False):
+    def transformImages(self, images, classes=None, rotate=False, crop=False):
         transformedImages = []
         transformedClasses = []
         for i in range(0, len(images)):
@@ -55,10 +56,10 @@ class ImagesProcessor:
             transformedImages.append(cv2.flip(image, 1)) # Cargo el mirror horizontal
             transformedImages.append(cv2.flip(image, 0)) # Cargo el mirror vertical
             if rotate:
-                transformedImages.append(self._rotateImage(image, 20))
-                transformedImages.append(self._rotateImage(image, -20))
-                transformedImages.append(self._rotateImage(image, 50))
-                transformedImages.append(self._rotateImage(image, -50))
+                transformedImages.append(self._rotateImage(image, 90))
+                transformedImages.append(self._rotateImage(image, 270))
+            if crop:
+                transformedImages += self._getCrops(image)
             # TODO: Agregar esta transformacion: http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_imgproc/py_geometric_transformations/py_geometric_transformations.html#affine-transformation
             if(classes is not None):
                 animalClass = classes[i]
@@ -68,8 +69,9 @@ class ImagesProcessor:
                 if rotate:
                     transformedClasses.append(animalClass)
                     transformedClasses.append(animalClass)
-                    transformedClasses.append(animalClass)
-                    transformedClasses.append(animalClass)
+                if crop:
+                    for j in range(6):
+                        transformedClasses.append(animalClass)
         return (transformedImages, transformedClasses)
 
     # Devuelve una lista con los tamanios de las imagenes
@@ -153,5 +155,19 @@ class ImagesProcessor:
     def getImageEdges(self, images):
         imagesEdges = []
         for image in images:
-            imagesEdges.append(cv2.Canny(image,100,200))
+            imagesEdges.append(cv2.Canny(image, 100, 200))
         return imagesEdges
+
+    def _getCrops(self, image):
+        size = image.shape
+        imagesCropes = []
+        x_len = size[0]
+        y_len = size[1]
+        imagesCropes.append(image[0:int(x_len*0.7), :])
+        imagesCropes.append(image[0:int(x_len*0.7), 0:int(y_len*0.7)])
+        imagesCropes.append(image[:, 0:int(y_len*0.7)])
+        imagesCropes.append(image[int(x_len*0.3):, :])
+        imagesCropes.append(image[:, int(y_len*0.3):])
+        imagesCropes.append(image[int(x_len*0.3):, int(y_len*0.3):])
+        imagesCropes = self.getImagesWithSize(imagesCropes, (x_len, y_len))
+        return imagesCropes

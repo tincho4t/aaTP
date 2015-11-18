@@ -24,11 +24,12 @@ class Ensemble(object):
         self.ip = ImagesProcessor()
 
     def fit_small(self, images, y):
-        t_pc = threading.Thread(target=self._fit_small_pc, args=(images[:], y))
+        images_transformed, y_transformed = self.ip.transformImages(images, y, rotate=True, crop=True)
+        t_pc = threading.Thread(target=self._fit_small_pc, args=(images_transformed[:], y_transformed))
         t_pc.daemon = True
         t_pc.start()
 
-        t_rbm = threading.Thread(target=self._fit_small_rbm, args=(images[:], y))
+        t_rbm = threading.Thread(target=self._fit_small_rbm, args=(images_transformed[:], y_transformed))
         t_rbm.daemon = True
         t_rbm.start()
 
@@ -73,7 +74,7 @@ class Ensemble(object):
         start_time = time.time()
         print("PCA RANDOM FOREST")
         ds = self.ip.getImagesWithGrayHistogramEqualized(images=images)
-        self.pca_randomForest_pca, self.pca_randomForest_norm, ds = self.ip.getPcaFeatures(ds, 150, (156, 156))
+        self.pca_randomForest_pca, self.pca_randomForest_norm, ds = self.ip.getPcaFeatures(ds, 150, (56, 56))
         self.pca_randomForest = RandomForest(ds, y, n_estimators=2000)
         self.pca_randomForest.fit()
         print("COMPELTE PCA RANDOM FOREST")
@@ -82,11 +83,11 @@ class Ensemble(object):
     def _fit_small_rbm(self, ds, y):
         start_time = time.time()
         print("RBM LR")
-        ds = self.ip.getImagesAsDataset(ds, (156, 156))
+        ds = self.ip.getImagesAsDataset(ds, (56, 56))
         ds = (ds - np.min(ds, 0)) / (np.max(ds, 0) + 0.0001)
         self.rbm_lr_rbm = BernoulliRBM(random_state=0, verbose=True)
         self.rbm_lr_rbm.learning_rate = 0.01
-        self.rbm_lr_rbm.n_iter = 100
+        self.rbm_lr_rbm.n_iter = 5
         self.rbm_lr_rbm.n_components = 150
         logistic = linear_model.RidgeClassifier(alpha=2)
         self.rbm_lr = Pipeline(steps=[('rbm', self.rbm_lr_rbm), ('lr', logistic)])
@@ -100,13 +101,13 @@ class Ensemble(object):
 
     def predict_small(self, images):
         ds = self.ip.getImagesWithGrayHistogramEqualized(images=images)
-        ds = self.ip.getImagesAsDataset(ds, (156, 156))
+        ds = self.ip.getImagesAsDataset(ds, (56, 56))
         ds = self.pca_randomForest_norm.transform(ds)
         ds = self.pca_randomForest_pca.transform(ds)
         pca_randomForest_y_hat = self.pca_randomForest.predict(ds)
 
         ds = images[:]
-        ds = self.ip.getImagesAsDataset(ds, (156, 156))
+        ds = self.ip.getImagesAsDataset(ds, (56, 56))
         ds = (ds - np.min(ds, 0)) / (np.max(ds, 0) + 0.0001)
         rbm_lr_y_hat = self.rbm_lr.predict(ds)
 
