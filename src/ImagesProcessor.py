@@ -1,7 +1,3 @@
-# Function load_dataset(path_to_folder) - devuelve ndarray de rgb de cada pixel + columna label (1 gato, 0 perro)
-# Function get_features_1(imagenes) - retrona dataset de attributes + columna label
-# Function get_features_2(imagenes) - retrona dataset de attributes + columna label
-# Function get_features_n(imagenes) - retrona dataset de attributes + columna label
 import numpy as np
 import cv2
 import mahotas
@@ -15,13 +11,13 @@ import random
 class ImagesProcessor:
     FOUR_PIXEL_COMBINATION = [(0, 0, 0, 0),(0, 0, 0, 1),(0, 0, 1, 0),(0, 0, 1, 1),(0, 1, 0, 0),(0, 1, 0, 1),(0, 1, 1, 0),(0, 1, 1, 1),(1, 0, 0, 0),(1, 0, 0, 1),(1, 0, 1, 0),(1, 0, 1, 1),(1, 1, 0, 0),(1, 1, 0, 1),(1, 1, 1, 0),(1, 1, 1, 1)]
 
-    def __init__(self, path, training=False, size=None, test_size=0.2):
-        self.training = training
-        self.path = path
-        self.images = []
-        self.testImages = []
-        self.testClass = []
-        self.imagesClass = []
+    # Levanta las imagenes del directorio.
+    # Devuelve una tupla (imagenes, clase de las images)
+    # Si trainig es false, classes va a ser []
+    # Si sizes != None entonces hace un resize de las images
+    def getImages(self, path, size=None, training=False):
+        images = []
+        classes = []
         for filename in os.listdir(path):
             if(filename.find('.DS_Store') >= 0): # Filtro los archivos temporales q mete mac en las carpetas
                 continue
@@ -29,57 +25,11 @@ class ImagesProcessor:
             image = cv2.imread(pathFileName)
             if size is not None:
                 image = cv2.resize(image, size)
-            if random.uniform(0, 1) > test_size:
-                self.loadImage(image, filename)
-            else:
-                self.testImages.append(image)
-                self.testClass.append(self.getAnimalClass(filename))
-        self.imagesMahotas = None
-        self.grayImages = None
-        self.darkPatternFeature = None
-        self.flatImages = None
-        self.textureFeatures = {} # Contiene todas las texturas calculadas para los distintos valores de radio y puntos
-        self.sizes = None
-        self.imagesEdges = None
+            if(training):
+                classes.append(self._getAnimalClass(filename))
+        return (images, classes)
 
-    def rotateImage(self, image, angle):
-        image_center = tuple(np.array(image.shape)/2)
-        rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-        result = cv2.warpAffine(image, rot_mat, image.shape, flags=cv2.INTER_LINEAR)
-        return result
-
-    # Metodo encargado de almacenar la imagen con sus distintas variantes
-    def loadImage(self, image, filename, rotate=False):
-        self.images.append(image) # Cargo las imagenes en formato cv2
-        self.images.append(cv2.flip(image, 1)) # Cargo el mirror horizontal
-        self.images.append(cv2.flip(image, 0)) # Cargo el mirror vertical
-        if rotate:
-            self.images.append(self.rotateImage(image, 20))
-            self.images.append(self.rotateImage(image, -20))
-            self.images.append(self.rotateImage(image, 50))
-            self.images.append(self.rotateImage(image, -50))
-        # TODO: Agregar esta transformacion: http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_imgproc/py_geometric_transformations/py_geometric_transformations.html#affine-transformation
-        if(self.training):
-            animalClass = self.getAnimalClass(filename)
-            self.imagesClass.append(animalClass) # Al agregar la imagen y su clase en el mismo orden no pierdo la relacion
-            self.imagesClass.append(animalClass) # Agrego la clase del mirror Horizontal
-            self.imagesClass.append(animalClass) # Agrego la clase del mirror vertical
-            if rotate:
-                self.imagesClass.append(animalClass)
-                self.imagesClass.append(animalClass)
-                self.imagesClass.append(animalClass)
-                self.imagesClass.append(animalClass)
-
-    # Por ahora no la usamos mas.
-    # Carga la imagen en grises con mejor definicion que opencv
-    # pero como despues la normalizamos no nos cambia tanto.
-    def loadMahotas(self):
-        self.imagesMahotas = []
-        for filename in os.listdir(self.path):
-            pathFileName = self.path+filename
-            self.imagesMahotas.append(mahotas.imread(pathFileName, as_grey=True)) # cargo las imagenes en formato mahotas
-
-    def getAnimalClass(self, filename):
+    def _getAnimalClass(self, filename):
         if(filename.find('cat') >= 0):
             return 1
         elif(filename.find('dog') >= 0):
@@ -87,71 +37,76 @@ class ImagesProcessor:
         else:
             raise ValueError("El nombre del filename no contiene informacion: %s." % filename)
 
-    def getImages(self):
-        return self.images
 
-    def getImagesWithSize(self, size, images=None):
-        if images is None:
-            images = self.images
-        image_array = []
-        for img in images:
-            image_array += [cv2.resize(img, size)]
-        return(image_array)
+    def _rotateImage(self, image, angle):
+        image_center = tuple(np.array(image.shape)/2)
+        rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+        result = cv2.warpAffine(image, rot_mat, image.shape, flags=cv2.INTER_LINEAR)
+        return result
 
-    def getImagesClass(self, train=True):
-        if train:
-            return self.imagesClass
-        else:
-            return self.testClass
+    # Le entregas las imagenes y sus clases y te devuelve
+    # una tupla con (images originales mas las transformadas, sus respectivas clases)
+    def transformImages(self, images, classes=None, rotate=False):
+        transformedImages = []
+        transformedClasses = []
+        for i in range(0, len(images)):
+            image = images[i]
+            transformedImages.append(image) # Cargo las imagenes en formato cv2
+            transformedImages.append(cv2.flip(image, 1)) # Cargo el mirror horizontal
+            transformedImages.append(cv2.flip(image, 0)) # Cargo el mirror vertical
+            if rotate:
+                transformedImages.append(self._rotateImage(image, 20))
+                transformedImages.append(self._rotateImage(image, -20))
+                transformedImages.append(self._rotateImage(image, 50))
+                transformedImages.append(self._rotateImage(image, -50))
+            # TODO: Agregar esta transformacion: http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_imgproc/py_geometric_transformations/py_geometric_transformations.html#affine-transformation
+            if(training):
+                animalClass = classes[i]
+                transformedClasses.append(animalClass) # Al agregar la imagen y su clase en el mismo orden no pierdo la relacion
+                transformedClasses.append(animalClass) # Agrego la clase del mirror Horizontal
+                transformedClasses.append(animalClass) # Agrego la clase del mirror vertical
+                if rotate:
+                    transformedClasses.append(animalClass)
+                    transformedClasses.append(animalClass)
+                    transformedClasses.append(animalClass)
+                    transformedClasses.append(animalClass)
+        return (transformedImages, transformedClasses)
 
-    def getImagesSize(self):
-        if(self.sizes is None):
-            self.sizes = []
-            for image in self.images:
-                self.sizes.append([len(image[0]), len(image)])
-        return self.sizes
+    # Devuelve una lista con los tamanios de las imagenes
+    def getImagesSize(self, images):
+        sizes = []
+        for image in images:
+            sizes.append([len(image[0]), len(image)])
+        return sizes
 
-    # Retorna el conjunto de las images con el
-    # histograma normalizado de imagenes en escala de grises
-    def getImagesWithGrayHistogramEqualized(self, train=True):
-        # De esta forma calculo 1 sola vez el histograma
-        if(self.grayImages is None and train):
-            print "Calculando el Histograma Normalizado en Grises"
-            self.grayImages = []
-            for image in self.images:
-                grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                grayImage = cv2.equalizeHist(grayImage)
-                self.grayImages.append(grayImage)
-            return self.grayImages
-        elif not train:
-            testImages = []
-            for image in self.testImages:
-                grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                grayImage = cv2.equalizeHist(grayImage)
-                self.testImages.append(grayImage)
-            return testImages
-        else:
-            return self.grayImages
+    # Retorna la misma lista de imagenes pero en escala de grises
+    # y con su histograma normalizado de imagenes en escala de grises
+    def getImagesWithGrayHistogramEqualized(self, images):
+        grayImages = []
+        for image in images:
+            grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            grayImage = cv2.equalizeHist(grayImage)
+            grayImages.append(grayImage)
+        return grayImages
 
-    def oscuro(self, color):
+    def _oscuro(self, color):
         return 1 if (color <= 127) else 0
 
     # Alto nombre que le puse ;)
     # Cuanta la cantidad de patrones que hay en la imagen
     # tomando cuadrados de 2x2
-    def getDarkPatternFeature(self):
-        if(self.darkPatternFeature is None):
-            gimages = self.getImagesWithGrayHistogramEqualized()
-            self.darkPatternFeature = []
-            for image in gimages:
-                self.darkPatternFeature.append(self.getDarkPattern(image))
-        return self.darkPatternFeature
+    def getDarkPatternFeature(self, images, classes=None):
+        gimages = self.getImagesWithGrayHistogramEqualized(images)
+        darkPatternFeature = []
+        for image in gimages:
+            darkPatternFeature.append(self._getDarkPattern(image))
+        return darkPatternFeature
 
-    def getDarkPattern(self, image):
+    def _getDarkPattern(self, image):
         patternHits = {}
         for i in range(image.shape[0]-1):
             for j in range(image.shape[1]-1):
-                    p = (self.oscuro(image[i, j]), self.oscuro(image[i+1, j]), self.oscuro(image[i+1, j]), self.oscuro(image[i+1, j+1]))
+                    p = (self._oscuro(image[i, j]), self._oscuro(image[i+1, j]), self._oscuro(image[i+1, j]), self._oscuro(image[i+1, j+1]))
                     if p in patternHits.keys():
                         patternHits[p] = patternHits[p] + 1
                     else:
@@ -163,52 +118,40 @@ class ImagesProcessor:
             pixelCombination.append(hits)  # Al agreguar los elementos en el orden de PIXEL_COMBINATION me quedan siempre en orden
         return pixelCombination
 
-    def getTextureFeature(self, radius, points):
-        key = (radius, points)
-        if(self.textureFeatures.get(key) is None):
-            print "Calculando texturas para radio %d con %d puntos" % (radius, points)
-            textures = []
-            gimages = self.getImagesWithGrayHistogramEqualized()
-            for image in gimages:
-                textures.append(mahotas.features.lbp(image, radius, points, ignore_zeros=False))
-            self.textureFeatures[key] = textures
-        return self.textureFeatures[key]
+    def getTextureFeature(self, images, radius, points):
+        textures = []
+        gimages = self.getImagesWithGrayHistogramEqualized(images)
+        for image in gimages:
+            textures.append(mahotas.features.lbp(image, radius, points, ignore_zeros=False))
+        return textures
 
-    def getPcaFeatures(self, components, image_size, imageDataset=None):
-        if imageDataset is None:
-            imageDataset = self.getImagesAsDataset(image_size)
+    # Recive imagenes de tamanio variable. Internamente nos encargamos de normalizarlas
+    def getPcaFeatures(self, images, components, image_size):
+        imageDataset = self._getImagesAsDataset(images, image_size)
         norm = Normalizer()
         imageDataset = norm.fit_transform(imageDataset)
         pca = PCA(n_components=components)
         imageDataset = pca.fit_transform(imageDataset)
         return pca, norm, imageDataset
 
-    def getImagesAsDataset(self, size, images=None):
-        if self.flatImages is None:
-            if images is None:
-                images = np.array(self.getImagesWithSize(size))
-            else:
-                images = np.array(self.getImagesWithSize(size, images))
-            n = len(images)
-            if len(images[0].shape) == 3:
-                images = np.array(images).reshape((n, -1, 3)).reshape((n, -1))  # Magia de reshape para obtener n filas con los pixeles de las imagenes aplanados en 1-D
-            else:
-                images = np.array(images).reshape((n, -1))
-            self.flatImages = images
-            return(images)
+    # Aplana las imagenes a una dimension
+    def _getImagesAsDataset(self, images, size):
+        images = np.array(self.getImagesWithSize(images, size))
+        n = len(images)
+        if len(images[0].shape) == 3:
+            images = np.array(images).reshape((n, -1, 3)).reshape((n, -1))  # Magia de reshape para obtener n filas con los pixeles de las imagenes aplanados en 1-D
         else:
-            return(self.flatImages)
+            images = np.array(images).reshape((n, -1))
+        return images
 
-    def getBernulliRBM(self, components, image_size, learning_rate=0.1, n_iter=10):
-        imageDataset = self.getImagesAsDataset(image_size)
-        imageDataset = (imageDataset - np.min(imageDataset, 0)) / (np.max(imageDataset, 0) + 0.0001)
-        rbm = BernoulliRBM(n_components=components, learning_rate=learning_rate, n_iter=n_iter, verbose=True)
-        imageDataset = rbm.fit_transform(imageDataset)
-        return rbm, imageDataset
+    def getImagesWithSize(self, images, size):
+        image_array = []
+        for img in images:
+            image_array += [cv2.resize(img, size)]
+        return image_array
 
-    def getImageEdges(self):
-        if(self.imagesEdges is None):
-            self.imagesEdges = []
-            for image in self.images:
-                self.imagesEdges.append(cv2.Canny(image,100,200))
-        return self.imagesEdges
+    def getImageEdges(self, images):
+        imagesEdges = []
+        for image in images:
+            imagesEdges.append(cv2.Canny(image,100,200))
+        return imagesEdges
