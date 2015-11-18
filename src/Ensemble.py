@@ -18,22 +18,25 @@ class Ensemble(object):
         self.texture_10_10_randomForest = None
         self.texture_5_10_randomForest = None
         self.ensemble_logistic_regression = None
+        self.edge_pca_lr = None
+        self.pca_edge_norm = None
+        self.pca_edge_pca = None
         self.ip = ImagesProcessor()
 
     def fit_small(self, images, y):
-        t_pc = threading.Thread(target=self._fit_small_pc, args = (images[:], y))
+        t_pc = threading.Thread(target=self._fit_small_pc, args=(images[:], y))
         t_pc.daemon = True
         t_pc.start()
 
-        t_rbm = threading.Thread(target=self._fit_small_rbm, args = (images[:], y))
+        t_rbm = threading.Thread(target=self._fit_small_rbm, args=(images[:], y))
         t_rbm.daemon = True
         t_rbm.start()
 
-        t_t10_10 = threading.Thread(target=self._fit_small_texture1, args = (images[:], y, self.texture_10_10_randomForest, 5, 10, 2000))
+        t_t10_10 = threading.Thread(target=self._fit_small_texture1, args=(images[:], y, self.texture_10_10_randomForest, 5, 10, 2000))
         t_t10_10.daemon = True
         t_t10_10.start()
 
-        t_t5_10 = threading.Thread(target=self._fit_small_texture2, args = (images[:], y, self.texture_5_10_randomForest, 5, 10, 2000))
+        t_t5_10 = threading.Thread(target=self._fit_small_texture2, args=(images[:], y, self.texture_5_10_randomForest, 5, 10, 2000))
         t_t5_10.daemon = True
         t_t5_10.start()
 
