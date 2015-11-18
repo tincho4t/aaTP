@@ -25,12 +25,29 @@ from Ensemble import Ensemble
 import rlcompleter, readline
 readline.parse_and_bind('tab:complete')
 
+
+def find_majority(k):
+    myMap = {}
+    maximum = (0, 0)
+    for n in k:
+        if n in myMap:
+            myMap[n] += 1
+        else:
+            myMap[n] = 1
+        if myMap[n] > maximum[1]:
+            maximum = (n, myMap[n])
+    return maximum[0]
+
+
+def score(y_hat, y_test):
+    return(1-sum(abs(y_hat-y_test))*1.0/len(y_test))
+
 ip = ImagesProcessor()
-images, y = ip.getImages('../imgs/test/medium/', training=True)
+images, y = ip.getImages('../imgs/test/medium/', training=True, size=(512, 512))
 
 X_train, X_test, y_train, y_test = train_test_split(images, y, test_size=0.3)
 X_train, y_train = ip.transformImages(X_train, y_train)
-X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=0.6)
+X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=0.3)
 
 ensemble = Ensemble()
 ensemble.fit_small(X_train, y_train)
@@ -39,6 +56,18 @@ ensemble.fit_big(X_validation_predictions, y_validation)
 
 X_test_predictions = ensemble.predict_small(X_test)
 y_hat = ensemble.predict_big(X_test_predictions)
+print(score(y_hat, y_test))
+
+y_hat_voting = np.zeros((len(X_test)))
+X_test_triple, _ = ip.transformImages(X_test)
+X_test_predictions = ensemble.predict_small(X_test_triple)
+y_hat = ensemble.predict_big(X_test_predictions)
+for i in range(0, len(y_hat), 3):
+    winner = find_majority(y_hat[i:i+3])
+    y_hat_voting[i/3] = winner
+
+print(score(y_hat_voting, y_test))
+
 
 
 #plt.figure(figsize=(14.2, 10))

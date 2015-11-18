@@ -5,6 +5,7 @@ from sklearn import linear_model
 from RandomForest import RandomForest
 from ImagesProcessor import ImagesProcessor
 import threading
+import time
 
 class Ensemble(object):
 
@@ -32,7 +33,7 @@ class Ensemble(object):
         t_t10_10.daemon = True
         t_t10_10.start()
 
-        t_t5_10 = threading.Thread(target=self._fit_small_texture1, args = (images[:], y, self.texture_5_10_randomForest, 5, 10, 2000))
+        t_t5_10 = threading.Thread(target=self._fit_small_texture2, args = (images[:], y, self.texture_5_10_randomForest, 5, 10, 2000))
         t_t5_10.daemon = True
         t_t5_10.start()
 
@@ -48,35 +49,47 @@ class Ensemble(object):
 
     # FIXE: unificar estas dos funciones. No le gusta pasar el estimador como atributo
     def _fit_small_texture1(self, images, y, estimator, radius, points, n_estimators):
+        start_time = time.time()
         print("TEXTURE %d %d" % (radius, points))
         ds = self.ip.getTextureFeature(images, radius, points)
         self.texture_5_10_randomForest = RandomForest(ds, y, n_estimators=n_estimators)
         self.texture_5_10_randomForest.fit()
+        print("COMPLETE TEXTURE %d %d" % (radius, points))
+        print("--- %s seconds ---" % (time.time() - start_time))
 
     def _fit_small_texture2(self, images, y, estimator, radius, points, n_estimators):
+        start_time = time.time()
         print("TEXTURE %d %d" % (radius, points))
         ds = self.ip.getTextureFeature(images, radius, points)
         self.texture_10_10_randomForest = RandomForest(ds, y, n_estimators=n_estimators)
         self.texture_10_10_randomForest.fit()
+        print("COMPLETE TEXTURE %d %d" % (radius, points))
+        print("--- %s seconds ---" % (time.time() - start_time))
 
     def _fit_small_pc(self, images, y):
+        start_time = time.time()
         print("PCA RANDOM FOREST")
         ds = self.ip.getImagesWithGrayHistogramEqualized(images=images)
-        self.pca_randomForest_pca, self.pca_randomForest_norm, ds = self.ip.getPcaFeatures(ds, 20, (56, 56))
+        self.pca_randomForest_pca, self.pca_randomForest_norm, ds = self.ip.getPcaFeatures(ds, 150, (156, 156))
         self.pca_randomForest = RandomForest(ds, y, n_estimators=2000)
         self.pca_randomForest.fit()
+        print("COMPELTE PCA RANDOM FOREST")
+        print("--- %s seconds ---" % (time.time() - start_time))
 
     def _fit_small_rbm(self, ds, y):
+        start_time = time.time()
         print("RBM LR")
-        ds = self.ip.getImagesAsDataset(ds, (56, 56))
+        ds = self.ip.getImagesAsDataset(ds, (156, 156))
         ds = (ds - np.min(ds, 0)) / (np.max(ds, 0) + 0.0001)
         self.rbm_lr_rbm = BernoulliRBM(random_state=0, verbose=True)
-        self.rbm_lr_rbm.learning_rate = 0.005
-        self.rbm_lr_rbm.n_iter = 20
-        self.rbm_lr_rbm.n_components = 100
-        logistic = linear_model.LogisticRegression()
+        self.rbm_lr_rbm.learning_rate = 0.01
+        self.rbm_lr_rbm.n_iter = 100
+        self.rbm_lr_rbm.n_components = 150
+        logistic = linear_model.RidgeClassifier(alpha=2)
         self.rbm_lr = Pipeline(steps=[('rbm', self.rbm_lr_rbm), ('lr', logistic)])
         self.rbm_lr.fit(ds, y)
+        print("COMPLETE RBM LR")
+        print("--- %s seconds ---" % (time.time() - start_time))
 
     def fit_big(self, ds, y):
         self.ensemble_logistic_regression = linear_model.LogisticRegression()
@@ -84,13 +97,13 @@ class Ensemble(object):
 
     def predict_small(self, images):
         ds = self.ip.getImagesWithGrayHistogramEqualized(images=images)
-        ds = self.ip.getImagesAsDataset(ds, (56, 56))
+        ds = self.ip.getImagesAsDataset(ds, (156, 156))
         ds = self.pca_randomForest_norm.transform(ds)
         ds = self.pca_randomForest_pca.transform(ds)
         pca_randomForest_y_hat = self.pca_randomForest.predict(ds)
 
         ds = images[:]
-        ds = self.ip.getImagesAsDataset(ds, (56, 56))
+        ds = self.ip.getImagesAsDataset(ds, (156, 156))
         ds = (ds - np.min(ds, 0)) / (np.max(ds, 0) + 0.0001)
         rbm_lr_y_hat = self.rbm_lr.predict(ds)
 
