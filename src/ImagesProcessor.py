@@ -127,7 +127,7 @@ class ImagesProcessor:
 
     # Recive imagenes de tamanio variable. Internamente nos encargamos de normalizarlas
     def getPcaFeatures(self, images, components, image_size):
-        imageDataset = self._getImagesAsDataset(images, image_size)
+        imageDataset = self.getImagesAsDataset(images, image_size)
         norm = Normalizer()
         imageDataset = norm.fit_transform(imageDataset)
         pca = PCA(n_components=components)
@@ -135,7 +135,7 @@ class ImagesProcessor:
         return pca, norm, imageDataset
 
     # Aplana las imagenes a una dimension
-    def _getImagesAsDataset(self, images, size):
+    def getImagesAsDataset(self, images, size):
         images = np.array(self.getImagesWithSize(images, size))
         n = len(images)
         if len(images[0].shape) == 3:
