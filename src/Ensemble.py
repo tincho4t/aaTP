@@ -20,29 +20,32 @@ class Ensemble(object):
         self.ip = ImagesProcessor()
 
     def fit_small(self, images, y):
-
+        print("PCA RANDOM FOREST")
         ds = self.ip.getImagesWithGrayHistogramEqualized(images=images)
-        ds = self.ip.getImagesAsDataset(ds, (56, 56))
-        self.pca_randomForest_pca, self.pca_randomForest_norm, ds = self.ip.getPcaFeatures(images=ds, 20, (56, 56))
-        self.pca_randomForest = RandomForest(ds, y)
+        self.pca_randomForest_pca, self.pca_randomForest_norm, ds = self.ip.getPcaFeatures(ds, 20, (56, 56))
+        self.pca_randomForest = RandomForest(ds, y, n_estimators=2000)
         self.pca_randomForest.fit()
 
-        ds = images.copy()
+        print("RBM LR")
+        ds = images[:]
+        ds = self.ip.getImagesAsDataset(ds, (56, 56))
         ds = (ds - np.min(ds, 0)) / (np.max(ds, 0) + 0.0001)
         self.rbm_lr_rbm = BernoulliRBM(random_state=0, verbose=True)
         self.rbm_lr_rbm.learning_rate = 0.005
-        self.rbm_lr_rbm.n_iter = 60
+        self.rbm_lr_rbm.n_iter = 20
         self.rbm_lr_rbm.n_components = 100
         logistic = linear_model.LogisticRegression()
         self.rbm_lr = Pipeline(steps=[('rbm', self.rbm_lr_rbm), ('lr', logistic)])
         self.rbm_lr.fit(ds, y)
 
+        print("TEXTURE 10 10")
         ds = self.ip.getTextureFeature(images, 10, 10)
-        self.texture_10_10_randomForest = RandomForest(ds, y)
+        self.texture_10_10_randomForest = RandomForest(ds, y, n_estimators=2000)
         self.texture_10_10_randomForest.fit()
 
+        print("TEXTURE 5 10")
         ds = self.ip.getTextureFeature(images, 5, 10)
-        self.texture_5_10_randomForest = RandomForest(ds, y)
+        self.texture_5_10_randomForest = RandomForest(ds, y, n_estimators=2000)
         self.texture_5_10_randomForest.fit()
 
     def fit_big(self, ds, y):
@@ -51,12 +54,13 @@ class Ensemble(object):
 
     def predict_small(self, images):
         ds = self.ip.getImagesWithGrayHistogramEqualized(images=images)
-        ds = self.ip.getImagesAsDataset((56, 56), ds)
+        ds = self.ip.getImagesAsDataset(ds, (56, 56))
         ds = self.pca_randomForest_norm.transform(ds)
         ds = self.pca_randomForest_pca.transform(ds)
         pca_randomForest_y_hat = self.pca_randomForest.predict(ds)
 
-        ds = images.copy()
+        ds = images[:]
+        ds = self.ip.getImagesAsDataset(ds, (56, 56))
         ds = (ds - np.min(ds, 0)) / (np.max(ds, 0) + 0.0001)
         rbm_lr_y_hat = self.rbm_lr.predict(ds)
 
@@ -66,7 +70,7 @@ class Ensemble(object):
         ds = self.ip.getTextureFeature(images, 5, 10)
         texture_5_10_randomForest_y_hat = self.texture_5_10_randomForest.predict(ds)
 
-        return(np.hstack((pca_randomForest_y_hat, rbm_lr_y_hat, texture_10_10_randomForest_y_hat, texture_5_10_randomForest_y_hat)))
+        return(np.vstack((pca_randomForest_y_hat, rbm_lr_y_hat, texture_10_10_randomForest_y_hat, texture_5_10_randomForest_y_hat)).T)
 
     def predict_big(self, ds):
-        self.ensemble_logistic_regression.predict(ds)
+        return(self.ensemble_logistic_regression.predict(ds))

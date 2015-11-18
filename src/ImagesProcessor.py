@@ -38,7 +38,6 @@ class ImagesProcessor:
         else:
             raise ValueError("El nombre del filename no contiene informacion: %s." % filename)
 
-
     def _rotateImage(self, image, angle):
         image_center = tuple(np.array(image.shape)/2)
         rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
@@ -61,7 +60,7 @@ class ImagesProcessor:
                 transformedImages.append(self._rotateImage(image, 50))
                 transformedImages.append(self._rotateImage(image, -50))
             # TODO: Agregar esta transformacion: http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_imgproc/py_geometric_transformations/py_geometric_transformations.html#affine-transformation
-            if(training):
+            if(classes is not None):
                 animalClass = classes[i]
                 transformedClasses.append(animalClass) # Al agregar la imagen y su clase en el mismo orden no pierdo la relacion
                 transformedClasses.append(animalClass) # Agrego la clase del mirror Horizontal
