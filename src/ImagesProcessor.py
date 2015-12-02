@@ -27,6 +27,8 @@ class ImagesProcessor:
                 image = cv2.resize(image, size)
             if(training):
                 classes.append(self._getAnimalClass(filename))
+            else:
+                classes.append(filename)
             images.append(image)
         return (images, classes)
 

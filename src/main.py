@@ -76,16 +76,32 @@ def run_kfold(method, kf, X, y, text, transformer=None):
         accuracy += score(y_hat, y_test)
     return(accuracy*1.0/len(kf))
 
+def printResult(names, y, confidence):
+    with open('grupoEitanTincho.txt', 'wb') as f:
+        for i in range(0,len(y)):
+            item_id = names[i].split('.')[0]
+            result = None
+            if(y[i] == 0):
+                result = 1
+            else:
+                result = 0
+            conf = confidence[i][y[i]]
+            f.write("%s,%d,%f\n"%(item_id, result, conf))
+
+
 ip = ImagesProcessor()
-images, y = ip.getImages('../imgs/test/mediumII/', training=True)
+images, y = ip.getImages('../imgs/test/dataset/', size=None, training=False)
 
 # Esto es lo que hay que usar para predecir el resultado final
-if False:
+if True:
     ensemble = Ensemble()
     ensemble.load()
     X_predictions = ensemble.predict_small(images)
     y_hat = ensemble.predict_big(X_predictions)
-    score(y_hat, y)
+    confidence = ensemble.ensemble_logistic_regression.predict_proba(X_predictions)
+    printResult(y, y_hat, confidence)
+    #score(y_hat, y)
+
 
 # Esto es lo que hay que usar para calcular al regression lineal y gurdarla
 if False:
