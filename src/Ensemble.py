@@ -8,6 +8,7 @@ from ImagesProcessor import ImagesProcessor
 from Constants import Constants
 import threading
 import time
+import cPickle
 
 class Ensemble(object):
 
@@ -33,6 +34,24 @@ class Ensemble(object):
         self.rbm_lr_y_hat = None
         self.texture_10_8_y_hat = None
         self.texture_5_10_y_hat = None
+
+    def load(self):
+        self.texture_10_8 = self._load_classifier('./ridgeClassifier_10_8')
+        self.texture_5_10 = self._load_classifier('./ridgeClassifier_5_10')
+        self.texture_7_10 = self._load_classifier('./ridgeClassifier_7_10')
+        self.texture_9_8 = self._load_classifier('./ridgeClassifier_9_8')
+        self.texture_4_10 = self._load_classifier('./ridgeClassifier_4_10')
+        self.texture_20_8 = self._load_classifier('./ridgeClassifier_20_8')
+        #self.ensemble_logistic_regression = self._load_classifier('ensemble_logistic_regression')
+        #pca_randomForest_pca = _load_classifier('./pca')
+        #rbm_lr = _load_classifier('./rbm')
+
+
+    def _load_classifier(self, path):
+        f = file(path, 'r')
+        classifier = cPickle.load(f)
+        f.close()
+        return classifier
 
     def fit_small(self, images, y):
         images_transformed, y_transformed = self.ip.transformImages(images, y, rotate=True, crop=True)
@@ -158,13 +177,13 @@ class Ensemble(object):
 
     def predict_small(self, images):
 
-        t_predict_small_pac_ranfomForest = threading.Thread(target=self._predict_small_pac_ranfomForest, args=(images, ))
-        t_predict_small_pac_ranfomForest.daemon = True
-        t_predict_small_pac_ranfomForest.start()
+        # t_predict_small_pac_ranfomForest = threading.Thread(target=self._predict_small_pac_ranfomForest, args=(images, ))
+        # t_predict_small_pac_ranfomForest.daemon = True
+        # t_predict_small_pac_ranfomForest.start()
 
-        t_predict_small_rbm_lr = threading.Thread(target=self._predict_small_rbm_lr, args=(images, ))
-        t_predict_small_rbm_lr.daemon = True
-        t_predict_small_rbm_lr.start()
+        # t_predict_small_rbm_lr = threading.Thread(target=self._predict_small_rbm_lr, args=(images, ))
+        # t_predict_small_rbm_lr.daemon = True
+        # t_predict_small_rbm_lr.start()
 
         t_predict_small_texture_10_8 = threading.Thread(target=self._predict_small_texture_10_8, args=(images, ))
         t_predict_small_texture_10_8.daemon = True
@@ -190,16 +209,17 @@ class Ensemble(object):
         t_predict_small_texture_20_8.daemon = True
         t_predict_small_texture_20_8.start()
 
-        t_predict_small_pac_ranfomForest.join()
-        t_predict_small_rbm_lr.join()
+        # t_predict_small_pac_ranfomForest.join()
+        # t_predict_small_rbm_lr.join()
         t_predict_small_texture_10_8.join()
         t_predict_small_texture_5_10.join()
         t_predict_small_texture_9_8.join()
         t_predict_small_texture_4_10.join()
         t_predict_small_texture_20_8.join()
+        t_predict_small_texture_7_10.join()
 
-        return(np.vstack((self.pca_randomForest_y_hat, self.rbm_lr_y_hat, self.texture_10_8_y_hat, self.texture_5_10_y_hat)).T)
-
+        return(np.vstack((self.texture_10_8_y_hat, self.texture_5_10_y_hat, self.texture_7_10_y_hat,self.texture_9_8_y_hat,self.texture_4_10_y_hat,self.texture_20_8_y_hat)).T)
+        # return(np.vstack((self.pca_randomForest_y_hat, self.rbm_lr_y_hat, self.texture_10_8_y_hat, self.texture_5_10_y_hat, self.texture_7_10_y_hat,self.texture_9_8_y_hat,self.texture_4_10_y_hat,self.texture_20_8_y_hat)).T)
 
     def _predict_small_rbm_lr(self, images):
         start_time = time.time()

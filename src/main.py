@@ -29,6 +29,7 @@ import gc
 import rlcompleter, readline
 readline.parse_and_bind('tab:complete')
 
+import cPickle
 
 def find_majority(k):
     myMap = {}
@@ -76,118 +77,23 @@ def run_kfold(method, kf, X, y, text, transformer=None):
     return(accuracy*1.0/len(kf))
 
 ip = ImagesProcessor()
-images, y = ip.getImages('../imgs/test/medium/', training=True)
+images, y = ip.getImages('../imgs/test/smallII/', training=True)
 
-n = len(images)
-kf = KFold(n, n_folds=3, shuffle=True)
-
-print("RandomForest with Texture")
-for radius, points in [[2, 2], [5, 5], [5, 10], [10, 10], [10, 20]]:
-    X = ip.getTextureFeature(images, radius, points)
-    acc = run_kfold("rf", kf, np.array(X), np.array(y), "Texture - radius: "+str(radius)+" points: "+str(points))
-    print("CV avg score: "+str(acc))
-
-print("RidgeClassifier with Texture")
-for radius, points in [[2, 2], [5, 5], [5, 10], [10, 10], [10, 20]]:
-    X = ip.getTextureFeature(images, radius, points)
-    acc = run_kfold("lr", kf, np.array(X), np.array(y), "Texture - radius: "+str(radius)+" points: "+str(points))
-    print("CV avg score: "+str(acc))
-
-print("RidgeClassifier with Texture 10, 12 PCA")
-X = ip.getTextureFeature(images, 10, 12)
-for components in [2, 5, 10, 50, 100]:
-    norm = Normalizer()
-    pca = PCA(n_components=components)
-    transformer = Pipeline(steps=[('norm', norm), ('pca', pca)])
-    acc = run_kfold("lr", kf, np.array(X), np.array(y), "Texture (10, 10) and PCA with components: "+str(components), transformer=transformer)
-    print("CV avg score: "+str(acc))
-
-
+# Esto es lo que hay que usar para predecir el resultado final
 if False:
-    X_train, X_test, y_train, y_test = train_test_split(images, y, test_size=0.5)
-    del images
-    gc.collect()
-    X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train, test_size=0.4)
-
     ensemble = Ensemble()
-    ensemble.fit_small(X_train, y_train)
-    X_validation_predictions = ensemble.predict_small(X_validation)
-    ensemble.fit_big(X_validation_predictions, y_validation)
+    ensemble.load()
+    X_predictions = ensemble.predict_small(images)
+    y_hat = ensemble.predict_big(X_predictions)
+    score(y_hat, y)
 
-    X_test_predictions = ensemble.predict_small(X_test)
-    y_hat = ensemble.predict_big(X_test_predictions)
-    print(score(y_hat, y_test))
+# Esto es lo que hay que usar para calcular al regression lineal y gurdarla
+if False:
+    ensemble = Ensemble()
+    ensemble.load()
+    X_validation_predictions = ensemble.predict_small(images)
+    ensemble.fit_big(X_validation_predictions, y)
+    f = file("./ensemble_logistic_regression", 'wb')
+    cPickle.dump(ensemble.ensemble_logistic_regression, f, protocol=cPickle.HIGHEST_PROTOCOL)
+    f.close()
 
-    y_hat_voting = np.zeros((len(X_test)))
-    X_test_triple, _ = ip.transformImages(X_test, rotate=False, crop=True)
-    X_test_predictions = ensemble.predict_small(X_test_triple)
-    y_hat = ensemble.predict_big(X_test_predictions)
-    for i in range(0, len(y_hat), 9):
-        winner = find_majority(y_hat[i:i+9])
-        y_hat_voting[i/9] = winner
-
-    print(score(y_hat_voting, y_test))
-
-
-
-#plt.figure(figsize=(14.2, 10))
-#for i, comp in enumerate(rbm1.components_):
-    #plt.subplot(10, 10, i + 1)
-    #plt.imshow(comp.reshape((56, 56)), cmap=plt.cm.gray_r, interpolation='nearest')
-    #plt.xticks(())
-    #plt.yticks(())
-#
-#plt.suptitle('100 components extracted by RBM', fontsize=16)
-#plt.subplots_adjust(0.08, 0.02, 0.92, 0.85, 0.08, 0.23)
-#
-#plt.show()
-
-#images = ip.getImages()
-#gimages = ip.getImagesWithGrayHistogramEqualized()
-#getDarkPatternFeature = ip.getDarkPatternFeature() # Tarda!!!!
-
-## Como mostrar una foto
-
-    image = images[10]
-    image = ip._rotateImage(image, 270)
-    cv2.imshow('rotated_image', a[3])
-    cv2.waitKey(0)                 # Waits forever for user to press any key
-    cv2.destroyAllWindows()        # Closes displayed windows
-
-#image = ds[0]
-#image = cv2.resize(image, (106, 106))
-#
-#cv2.imshow('color_image', image)
-#cv2.waitKey(0)                 # Waits forever for user to press any key
-#cv2.destroyAllWindows()        # Closes displayed windows
-
-#image = cv2.imread('../imgs/test/cat.0.jpg', 0)
-#ip.getDarkPattern(image)
-
-
-#import mahotas
-#radius = 5
-#points = 12
-#img = mahotas.imread("../imgs/test/cat.0.jpg", as_grey=True)
-#mahotas.features.lbp(img, radius, points, ignore_zeros=False)
-
-
-"""
-    Dependencias:
-        pip install mahotas
-        sudo pip install imread
-"""
-"""
-    Resultados: con RandomForest
-        textures = ip.getTextureFeature(5,12)
-        0.65336658354114718
-
-        textures = ip.getTextureFeature(10,12)
-        0.66583541147132175
-
-        textures = ip.getTextureFeature(15,20)
-        0.57356608478802995
-
-        textures = ip.getTextureFeature(15,12)
-        0.62094763092269323
-"""
