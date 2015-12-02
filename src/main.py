@@ -77,7 +77,7 @@ def run_kfold(method, kf, X, y, text, transformer=None):
     return(accuracy*1.0/len(kf))
 
 ip = ImagesProcessor()
-images, y = ip.getImages('../imgs/test/smallII/', training=True)
+images, y = ip.getImages('../imgs/test/mediumII/', training=True)
 
 # Esto es lo que hay que usar para predecir el resultado final
 if False:
